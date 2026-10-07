@@ -1,0 +1,181 @@
+name: Sync debugger firmware
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+  push:
+    paths:
+      - '.github/workflows/sync-debugger-firmware.yml'
+
+concurrency:
+  group: sync-debugger-firmware
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check source revision
+    runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.state.outputs.source_sha }}
+      needs_build: ${{ steps.state.outputs.needs_build }}
+    steps:
+      - name: Checkout firmware repository
+        uses: actions/checkout@v4
+
+      - name: Compare published and source revisions
+        id: state
+        run: |
+          SOURCE_SHA="$(git ls-remote https://github.com/niwantha33/micropython_live_debugger.git refs/heads/main | awk '{print $1}')"
+          test -n "$SOURCE_SHA"
+          CURRENT_SHA="$(awk -F': ' '$1 == "source_commit" {print $2}' Pico2w/VERSION.txt 2>/dev/null || true)"
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          if [ "$SOURCE_SHA" = "$CURRENT_SHA" ]; then
+            echo "needs_build=false" >> "$GITHUB_OUTPUT"
+            echo "Firmware is already current: ${SOURCE_SHA::12}"
+          else
+            echo "needs_build=true" >> "$GITHUB_OUTPUT"
+            echo "Firmware update required: ${CURRENT_SHA:-none} -> $SOURCE_SHA"
+          fi
+
+  build:
+    name: Build ${{ matrix.label }}
+    needs: check
+    if: needs.check.outputs.needs_build == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: pico
+            label: Raspberry Pi Pico
+            board: RPI_PICO
+            folder: Pico
+            asset: firmware_pico.uf2
+          - id: picow
+            label: Raspberry Pi Pico W
+            board: RPI_PICO_W
+            folder: Picow
+            asset: firmware_pico_w.uf2
+          - id: pico2
+            label: Raspberry Pi Pico 2
+            board: RPI_PICO2
+            folder: Pico2
+            asset: firmware_pico2.uf2
+          - id: pico2w
+            label: Raspberry Pi Pico 2 W
+            board: RPI_PICO2_W
+            folder: Pico2w
+            asset: firmware_pico2_w.uf2
+
+    env:
+      SOURCE_SHA: ${{ needs.check.outputs.source_sha }}
+
+    steps:
+      - name: Checkout debugger source
+        uses: actions/checkout@v4
+        with:
+          repository: niwantha33/micropython_live_debugger
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          persist-credentials: false
+
+      - name: Load pinned MicroPython revision
+        run: |
+          MICROPYTHON_REF="$(tr -d '[:space:]' < source/firmware/MICROPYTHON_REF)"
+          test -n "$MICROPYTHON_REF"
+          echo "MICROPYTHON_REF=$MICROPYTHON_REF" >> "$GITHUB_ENV"
+
+      - name: Install ARM toolchain and build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi cmake build-essential python3 git
+
+      - name: Clone pinned MicroPython
+        run: |
+          git clone https://github.com/micropython/micropython.git "$HOME/micropython"
+          cd "$HOME/micropython"
+          git checkout --detach "$MICROPYTHON_REF"
+          git submodule update --init --recursive
+          make -C mpy-cross
+
+      - name: Apply debugger patches
+        run: |
+          export MPY_DIR="$HOME/micropython"
+          for p in source/firmware/patches/0*.sh; do
+            echo ">> $p"
+            bash "$p"
+          done
+
+      - name: Build firmware
+        run: |
+          cd "$HOME/micropython/ports/rp2"
+          make BOARD=${{ matrix.board }} submodules
+          make BOARD=${{ matrix.board }} -j4
+
+      - name: Verify debugger capabilities
+        run: |
+          UF2="$HOME/micropython/ports/rp2/build-${{ matrix.board }}/firmware.uf2"
+          test -s "$UF2"
+          strings -a "$UF2" | grep -Fxq 'rta_on'  || { echo "ERROR: missing dbg.rta_on"; exit 1; }
+          strings -a "$UF2" | grep -Fxq 'rta_off' || { echo "ERROR: missing dbg.rta_off"; exit 1; }
+
+      - name: Stage firmware
+        run: |
+          mkdir -p "out/${{ matrix.folder }}"
+          UF2="out/${{ matrix.folder }}/${{ matrix.asset }}"
+          cp "$HOME/micropython/ports/rp2/build-${{ matrix.board }}/firmware.uf2" "$UF2"
+          SHA256="$(sha256sum "$UF2" | awk '{print $1}')"
+          {
+            echo "source_commit: $SOURCE_SHA"
+            echo "source_branch: main"
+            echo "micropython_commit: $MICROPYTHON_REF"
+            echo "board: ${{ matrix.board }}"
+            echo "built_at: $(date -u +%FT%TZ)"
+            echo "sha256: $SHA256"
+            echo "rta_api: dbg.rta_on,dbg.rta_off"
+          } > "out/${{ matrix.folder }}/VERSION.txt"
+
+      - name: Upload staged firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.id }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish firmware
+    needs:
+      - check
+      - build
+    if: needs.check.outputs.needs_build == 'true'
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_SHA: ${{ needs.check.outputs.source_sha }}
+    steps:
+      - name: Checkout firmware repository
+        uses: actions/checkout@v4
+
+      - name: Download staged firmware
+        uses: actions/download-artifact@v4
+        with:
+          pattern: firmware-*
+          path: staged
+          merge-multiple: true
+
+      - name: Commit firmware update
+        run: |
+          cp -R staged/* ./
+          git config user.email "bot@niwantha33.local"
+          git config user.name "firmware-bot"
+          git add Pico/ Picow/ Pico2/ Pico2w/
+          if git diff --cached --quiet; then
+            echo "No firmware changes to publish"
+            exit 0
+          fi
+          git commit -m "auto: debugger firmware from ${SOURCE_SHA::7}"
+          git push origin HEAD:main
