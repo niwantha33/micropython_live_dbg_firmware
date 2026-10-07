@@ -1,7 +1,7 @@
 source_commit: e79fab2aa8688431bca07a6dc8b7cb46e13d8e1e
 source_branch: main
 micropython_commit: a129b2fba1a3348088c94d0462eef16d20874dea
-board: RPI_PICO_W
-built_at: 2026-10-07T12:08:50Z
-sha256: f187c4436651c795f59af904504d45609bc67e6d3d49e70eeff086698fee64e4
+board: RPI_PICO2
+built_at: 2026-10-07T12:06:43Z
+sha256: ecf96e21ccdb753693ffa379a8661bdbe183708e7cf4c06cad5045b557a11d74
 rta_api: dbg.rta_on,dbg.rta_off
