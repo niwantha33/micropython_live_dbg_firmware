@@ -1,0 +1,93 @@
+name: Release v2.6.0 Pico W frozen debugger
+
+# One-time operator-authorised release. Only the photographed/tested Pico W
+# hardware is approved; other TestBuilds stay experimental.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-v260-picow-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release-picow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact firmware repository state
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify hardware-approved candidate binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="TestBuilds/Picow/firmware_pico_w.uf2"
+          VERSION="TestBuilds/Picow/VERSION.txt"
+          test -s "$FILE" && test -s "$VERSION"
+          test "$(stat -c%s "$FILE")" -gt 100000
+          grep -Fxq 'board: RPI_PICO_W' "$VERSION"
+          grep -Fxq 'source_commit: fa76d1d54fa6dfcfd390c43e363d1a343d5e6825' "$VERSION"
+          grep -Fxq 'source_branch: feature/pico-frozen-debugger-v1' "$VERSION"
+          grep -Fxq 'transport: PICO_CDC0=REPL_UPLOAD,PICO_CDC1=DEBUGGER' "$VERSION"
+          grep -Fxq 'bootstrap: frozen-pico-two-phase' "$VERSION"
+          grep -Fxq 'pump_protocol: 5' "$VERSION"
+          expected="$(awk -F': ' '$1 == "sha256" {print $2}' "$VERSION")"
+          actual="$(sha256sum "$FILE" | awk '{print $1}')"
+          test "$expected" = "$actual"
+          test "$actual" = 'f60599ccbb1e5ede74a87349b21e10a013d80e7b869aa1ee3072b7cdfa072630'
+          echo "Checked approved Pico W firmware; SHA256=$actual" >> "$GITHUB_STEP_SUMMARY"
+          cp "$FILE" ./micropython-studio-picow-debugger-v2.6.0.uf2
+          cp "$VERSION" ./PicoW-v2.6.0-VERSION.txt
+          echo "$actual  micropython-studio-picow-debugger-v2.6.0.uf2" > SHA256SUMS.txt
+
+      - name: Ensure this release has not been tagged already
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view v2.6.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Firmware release v2.6.0 already exists. Refusing to overwrite it.'
+            exit 1
+          fi
+          if git ls-remote --tags origin 'refs/tags/v2.6.0' | grep -q .; then
+            echo 'Firmware tag v2.6.0 already exists. Refusing to overwrite it.'
+            exit 1
+          fi
+
+      - name: Create Pico W-only tagged GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/release-notes.md <<'NOTES'
+          # MicroPython Studio Frozen Debugger v2.6.0 — Raspberry Pi Pico W
+
+          **Pico W hardware confirmation:** debugger-enabled firmware works without uploading `boot.py`, `dbgref.py` or `trace_pump.py`. Reported on 8 October 2026.
+
+          - **Download:** `micropython-studio-picow-debugger-v2.6.0.uf2`
+          - **Target:** Raspberry Pi Pico W (RP2040, Wi-Fi). **Not** Pico, Pico 2, Pico 2 W or ESP32.
+          - **Transport:** one physical USB connection; CDC0 REPL/upload, CDC1 debugger.
+          - **Firmware source:** `fa76d1d54fa6dfcfd390c43e363d1a343d5e6825`
+          - **MicroPython source:** `a129b2fba1a3348088c94d0462eef16d20874dea`
+          - **SHA256:** `f60599ccbb1e5ede74a87349b21e10a013d80e7b869aa1ee3072b7cdfa072630`
+
+          Install in Pico W BOOTSEL mode; back up existing device files before changing firmware. Remove any conflicting legacy debugger `boot.py` only with a backup and after checking the board filesystem. Flashing firmware does not prove every device feature or a 30-second RTA stability test; continue hardware regression work.
+
+          **Other boards:** the builds in `TestBuilds/` remain experimental and are *not* part of this release. The previous stable Pico family binaries are unchanged. No ESP32-S3/C3 firmware is approved by this tag.
+
+          The matching Studio extension v2.6.0 provides the firmware-first debugger workflow.
+          NOTES
+          gh release create v2.6.0 \
+            ./micropython-studio-picow-debugger-v2.6.0.uf2 \
+            ./PicoW-v2.6.0-VERSION.txt \
+            ./SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "v2.6.0 — Pico W frozen MicroPython debugger" \
+            --notes-file /tmp/release-notes.md \
+            --latest
