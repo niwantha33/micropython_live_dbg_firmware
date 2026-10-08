@@ -1,39 +1,26 @@
 # MicroPython Studio — Debugger Firmware
 
-**Find your board, download the firmware, then debug in VS Code.**
+Choose your board. **Only flash firmware built for your exact model.**
 
-## Official v2.6.0 — Pico W frozen debugger
+## Releases
 
-**[Download Raspberry Pi Pico W v2.6.0 UF2](https://github.com/niwantha33/micropython_live_dbg_firmware/releases/download/v2.6.0/micropython-studio-picow-debugger-v2.6.0.uf2)**
+| Board | Firmware | Status |
+| --- | --- | --- |
+| **Raspberry Pi Pico W** | [**Download v2.6.0 UF2**](https://github.com/niwantha33/micropython_live_dbg_firmware/releases/download/v2.6.0/micropython-studio-picow-debugger-v2.6.0.uf2) | Hardware-tested frozen debugger |
+| **ESP32-S3** | [**Download v2.6.0 Preview**](https://github.com/niwantha33/micropython_live_dbg_firmware/releases/tag/v2.6.0-esp32s3-preview) | Preview — long RTA/reset test pending |
 
-[Release notes, version metadata and checksum](https://github.com/niwantha33/micropython_live_dbg_firmware/releases/tag/v2.6.0)
+The Pico W needs **no separate debugger Python files**. Its USB CDC0 is REPL/upload; CDC1 is debugger.
 
-Tested on a physical **Raspberry Pi Pico W** without separately uploading `boot.py`, `dbgref.py` or `trace_pump.py`. One USB cable: CDC0 for REPL/upload, CDC1 for the debugger. The Pico W firmware's full long-duration stability qualification remains ongoing.
+ESP32-S3 requires **two USB connections**: Serial/JTAG for REPL/upload and native USB for debugging. [Read the flashing instructions](https://github.com/niwantha33/micropython_live_dbg_firmware/releases/download/v2.6.0-esp32s3-preview/ESP32S3-READ-ME-FIRST.txt) before installing the preview.
 
-**Not for Pico, Pico 2, Pico 2 W, ESP32-S3 or ESP32-C3.** The old `Picow/` folder retains a legacy binary; use the **v2.6.0 Release asset** for the new frozen debugger.
+## Other boards
 
+[**Pico / Pico 2 / Pico W / Pico 2 W / ESP32-S3 test builds**](TestBuilds/README.md)
 
-## Latest test builds — Pico / ESP32-S3
+Other Pico frozen-debugger images still need their own hardware checks. **ESP32-C3/S2 debugger firmware is not available.** Do not use an S3 image on a C3.
 
-**[Open easy firmware downloads →](TestBuilds/README.md)**
+Previously published files remain in the legacy board folders; they are not necessarily the newest debugger images.
 
-| Board | Latest experimental firmware |
-| --- | --- |
-| **Pico 2 W** | [Download UF2](TestBuilds/Pico2w/firmware_pico2_w.uf2?raw=1) |
-| Pico 2 | [Download UF2](TestBuilds/Pico2/firmware_pico2.uf2?raw=1) |
-| Pico W | [Download UF2](TestBuilds/Picow/firmware_pico_w.uf2?raw=1) |
-| Pico | [Download UF2](TestBuilds/Pico/firmware_pico.uf2?raw=1) |
-| ESP32-S3 | [Download test firmware](TestBuilds/ESP32S3/firmware_esp32s3.bin?raw=1) · [flash instructions](TestBuilds/README.md) |
+[MicroPython Studio v2.6.0 VSIX](https://github.com/niwantha33/micropython-studio/releases/download/v2.6.0/micropython-studio-2.6.0.vsix) · [Source code](https://github.com/niwantha33/micropython_live_debugger) · [Roadmap](ROADMAP.md)
 
-**Important:** These are **unvalidated test images**, not stable releases. Check the exact board before flashing. ESP32-C3 and ESP32-S2 debugger images are not available yet.
-
-## Current stable/legacy firmware
-
-Existing released files are in [Pico 2 W](Pico2w/), [Pico 2](Pico2/), [Pico W](Picow/), [Pico](Pico/), and [ESP32-S3 legacy](ESP32S3/). The published ESP32-S3 image in this stable/legacy folder is **not** the newer two-USB test build.
-
-## How updates work
-
-- **Test firmware:** every Monday at **04:53 UTC**; all four frozen Pico builds and ESP32-S3 must pass CI. The workflow updates **only** `TestBuilds/` on GitHub, with source versions and SHA256 hashes. [Build history](https://github.com/niwantha33/micropython_live_dbg_firmware/actions/workflows/weekly-candidate-builds.yml).
-- **Stable Pico firmware:** every Monday at **03:17 UTC**; stable downloads are replaced **only** after an explicitly approved source commit passes the build checks. [Stable workflow](https://github.com/niwantha33/micropython_live_dbg_firmware/actions/workflows/sync-debugger-firmware.yml).
-
-For requirements, validation gates and planned board support, see [ROADMAP](ROADMAP.md) and the [firmware source](https://github.com/niwantha33/micropython_live_debugger). Studio extension: [install from VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=niwantha33.micropython-studio).
+Test candidates are rebuilt weekly; releases are pinned and do not change when new candidates are built.
