@@ -1,17 +1,19 @@
-name: Sync debugger firmware
+name: Weekly validated Pico debugger build
 
 permissions:
-  contents: write
+  contents: read
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/30 * * * *'
+    # Every Monday at 03:17 UTC. Scheduled runs build all four Pico UF2s.
+    - cron: '17 3 * * 1'
   push:
     branches:
       - main
     paths:
       - '.github/workflows/sync-debugger-firmware.yml'
+      - '.github/approved-pico-source.sha'
 
 concurrency:
   group: sync-debugger-firmware
@@ -23,30 +25,43 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       source_sha: ${{ steps.state.outputs.source_sha }}
-      needs_build: ${{ steps.state.outputs.needs_build }}
+      needs_publish: ${{ steps.state.outputs.needs_publish }}
     steps:
       - name: Checkout firmware repository
         uses: actions/checkout@v4
 
-      - name: Compare published and source revisions
+      - name: Check hardware-approved Pico source against published versions
         id: state
+        shell: bash
         run: |
-          SOURCE_SHA="$(git ls-remote https://github.com/niwantha33/micropython_live_debugger.git refs/heads/main | awk '{print $1}')"
-          test -n "$SOURCE_SHA"
-          CURRENT_SHA="$(awk -F': ' '$1 == "source_commit" {print $2}' Pico2w/VERSION.txt 2>/dev/null || true)"
-          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
-          if [ "$SOURCE_SHA" = "$CURRENT_SHA" ]; then
-            echo "needs_build=false" >> "$GITHUB_OUTPUT"
-            echo "Firmware is already current: ${SOURCE_SHA::12}"
-          else
-            echo "needs_build=true" >> "$GITHUB_OUTPUT"
-            echo "Firmware update required: ${CURRENT_SHA:-none} -> $SOURCE_SHA"
+          set -euo pipefail
+          # Intentional release gate. Do NOT track source main HEAD:
+          # docs-only merges and experimental branches must not publish firmware.
+          SOURCE_SHA="$(tr -d '[:space:]' < .github/approved-pico-source.sha)"
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid approved source SHA" >&2
+            exit 1
           fi
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          need=false
+          for board in Pico Picow Pico2 Pico2w; do
+            current="$(awk -F': ' '$1 == "source_commit" {print $2}' "$board/VERSION.txt" 2>/dev/null || true)"
+            if [ "$current" != "$SOURCE_SHA" ]; then
+              need=true
+              echo "$board requires an approved promotion: ${current:-none} -> $SOURCE_SHA"
+            else
+              echo "$board already publishes approved commit ${SOURCE_SHA:0:12}"
+            fi
+          done
+          echo "needs_publish=$need" >> "$GITHUB_OUTPUT"
+          echo "### Weekly Pico firmware build" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pinned, approved source: \`$SOURCE_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Promotion required: \`$need\` (builds run even when false)" >> "$GITHUB_STEP_SUMMARY"
 
   build:
     name: Build ${{ matrix.label }}
     needs: check
-    if: needs.check.outputs.needs_build == 'true'
+    # Always build weekly, even when binaries are already at the approved SHA.
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -120,8 +135,10 @@ jobs:
 
       - name: Verify debugger capabilities
         run: |
+          set -euo pipefail
           UF2="$HOME/micropython/ports/rp2/build-${{ matrix.board }}/firmware.uf2"
           test -s "$UF2"
+          test "$(stat -c%s "$UF2")" -gt 100000
           strings -a "$UF2" | grep -Fxq 'rta_on'  || { echo "ERROR: missing dbg.rta_on"; exit 1; }
           strings -a "$UF2" | grep -Fxq 'rta_off' || { echo "ERROR: missing dbg.rta_off"; exit 1; }
 
@@ -133,7 +150,8 @@ jobs:
           SHA256="$(sha256sum "$UF2" | awk '{print $1}')"
           {
             echo "source_commit: $SOURCE_SHA"
-            echo "source_branch: main"
+            echo "source_branch: approved-pico-commit"
+            echo "release_channel: stable-approved"
             echo "micropython_commit: $MICROPYTHON_REF"
             echo "board: ${{ matrix.board }}"
             echo "built_at: $(date -u +%FT%TZ)"
@@ -147,14 +165,18 @@ jobs:
           name: firmware-${{ matrix.id }}
           path: out/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
 
   publish:
     name: Publish firmware
     needs:
       - check
       - build
-    if: needs.check.outputs.needs_build == 'true'
+    # Publish ONLY when an explicitly approved SHA is different from the
+    # currently published source and ALL four builds/verification jobs passed.
+    if: needs.check.outputs.needs_publish == 'true' && needs.build.result == 'success'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     env:
       SOURCE_SHA: ${{ needs.check.outputs.source_sha }}
@@ -170,8 +192,27 @@ jobs:
           merge-multiple: true
 
       - name: Commit firmware update
+        shell: bash
         run: |
-          cp -R staged/* ./
+          set -euo pipefail
+          # Guard the public download channel: never promote S3/C3/test builds.
+          for entry in "Pico:firmware_pico.uf2:RPI_PICO" "Picow:firmware_pico_w.uf2:RPI_PICO_W" "Pico2:firmware_pico2.uf2:RPI_PICO2" "Pico2w:firmware_pico2_w.uf2:RPI_PICO2_W"; do
+            IFS=: read -r folder asset board <<< "$entry"
+            version="staged/$folder/VERSION.txt"
+            uf2="staged/$folder/$asset"
+            test -s "$version"
+            test -s "$uf2"
+            grep -Fxq "source_commit: $SOURCE_SHA" "$version"
+            grep -Fxq "board: $board" "$version"
+            grep -Fxq 'release_channel: stable-approved' "$version"
+            expected="$(awk -F': ' '$1 == "sha256" {print $2}' "$version")"
+            actual="$(sha256sum "$uf2" | awk '{print $1}')"
+            test -n "$expected" && test "$expected" = "$actual" || {
+              echo "Checksum mismatch for $folder" >&2
+              exit 1
+            }
+          done
+          cp -R staged/Pico staged/Picow staged/Pico2 staged/Pico2w ./
           git config user.email "bot@niwantha33.local"
           git config user.name "firmware-bot"
           git add Pico/ Picow/ Pico2/ Pico2w/
@@ -179,5 +220,6 @@ jobs:
             echo "No firmware changes to publish"
             exit 0
           fi
-          git commit -m "auto: debugger firmware from ${SOURCE_SHA::7}"
+          git commit -m "release(pico): approved debugger firmware ${SOURCE_SHA::7}"
+          git pull --rebase origin main
           git push origin HEAD:main
