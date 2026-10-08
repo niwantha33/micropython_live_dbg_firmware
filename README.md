@@ -63,3 +63,21 @@ See [ROADMAP.md](ROADMAP.md) for the validation/publishing gate. Do not replace 
 ## License
 
 MIT — see the [debugger source repository](https://github.com/niwantha33/micropython_live_debugger/blob/main/LICENSE).
+
+## Weekly experimental firmware builds (never auto-published)
+
+A second [GitHub Actions workflow](.github/workflows/weekly-candidate-builds.yml)
+runs **Mondays at 04:53 UTC**, or manually, after the approved Pico build.
+It independently builds the **four frozen no-upload Pico candidates** from
+`feature/pico-frozen-debugger-v1` and the **ESP32-S3 native-debugger candidate**
+from `feature/esp32-s3-debugger-v1`. The artifacts are visibly marked
+`weekly-candidate-*-UNVALIDATED` and retained for 14 days.
+
+**These five firmware images are test artifacts only.** This workflow has
+`contents: read` permission and contains **no publish or push step**;
+none are copied into the stable board folders automatically.
+
+ESP32-C3 is excluded until its fixed-function native USB Serial/JTAG plus
+CH340 bridge solution is implemented, compiled and bench-tested. The supplied
+board photo matches a dual USB-C C3-MINI-1 carrier, but its actual connector
+enumeration remains to be verified.
