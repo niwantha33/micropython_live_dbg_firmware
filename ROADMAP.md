@@ -35,12 +35,26 @@ untested developer firmware. Preserve known-working Pico downloads.
 ## Automation caution
 
 [`sync-debugger-firmware.yml`](.github/workflows/sync-debugger-firmware.yml)
-automatically polls the **source `main` SHA**, not a fingerprint of compiled
-firmware inputs. If source `main` changes for documentation alone, the workflow
-may rebuild and publish current Pico UF2s. This is an existing release-management
-risk. Keep unvalidated changes on their isolated branches and improve the sync
-gate before merging development candidates. The current sync matrix publishes
-Pico, Pico W, Pico 2 and Pico 2 W, not S3/C3.
+now builds Pico/Pico W/Pico 2/Pico 2 W **weekly, Monday at 03:17 UTC** and on
+manual dispatch. It uses [`approved-pico-source.sha`](.github/approved-pico-source.sha)
+rather than polling source `main`. All four builds and symbol checks run
+every week; public Pico firmware folders are updated **only after** a new
+hardware-approved source commit is explicitly entered and all four builds,
+board ID checks and SHA256 verification succeed. A docs-only source change
+does not trigger firmware promotion.
+
+- [x] Replace unsafe 30-minute automatic source-`main` polling.
+- [x] Pin published stable Pico source; retain legacy binaries until accepted.
+- [x] Add automated full four-target weekly build and CI artifact upload.
+- [x] Gate published firmware on approved source SHA and full-matrix success.
+- [ ] Hardware-certify frozen Pico candidates before updating approval SHA.
+- [ ] Certify ESP32-S3 and C3 separately and design board-specific release
+      workflows if those versions are approved. They are not published weekly.
+
+The supplied ESP32-C3 board photo visually matches a dual-USB-C C3-MINI-1
+board (likely left fixed USB Serial/JTAG, right CH340 UART). This allows a
+candidate **independent two-port** design, but physical COM mapping and
+single-core debugger/watchdog testing are still outstanding.
 
 ### Related development
 
