@@ -1,0 +1,137 @@
+name: Release v2.6.0 ESP32-S3 debugger preview
+
+# Board-specific PREVIEW release only. ESP32-S3 30-second RTA/watchdog/reset
+# acceptance is not yet complete. No stable binaries or current tags changed.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-v260-esp32s3-preview-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release-s3-preview:
+    name: Verify and publish original ESP32-S3 candidate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify exact CI-built ESP32-S3 firmware and version
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir=TestBuilds/ESP32S3
+          image="$dir/firmware_esp32s3.bin"
+          version="$dir/VERSION.txt"
+          test -s "$image" && test -s "$version"
+          test -s "$dir/bootloader.bin"
+          test -s "$dir/partition-table.bin"
+          test "$(stat -c %s "$image")" -gt 1000000
+          grep -Fxq 'board: ESP32_GENERIC_S3' "$version"
+          grep -Fxq 'source_commit: bafa3c5aac7fa9a83bafdfa9f7c53f997292c0f4' "$version"
+          grep -Fxq 'micropython_commit: a129b2fba1a3348088c94d0462eef16d20874dea' "$version"
+          grep -Fxq 'esp_idf: v5.5.5' "$version"
+          grep -Fxq 'transport: serial-jtag-repl-plus-native-usb-debugger' "$version"
+          grep -Fxq 'usb_layout: SERIAL_JTAG=REPL_UPLOAD,NATIVE_CDC=DEBUGGER' "$version"
+          sha="$(sha256sum "$image" | awk '{print $1}')"
+          test "$sha" = '2dcf6b4a9d063a479e5a833b9831ea689d4ce81ac960395eaba2f741ca251da2'
+          grep -Fxq "sha256: $sha" "$version"
+          cp "$image" ./micropython-studio-esp32s3-debugger-v2.6.0-preview.bin
+          cp "$version" ./ESP32S3-v2.6.0-preview-VERSION.txt
+          printf '%s  %s\n' "$sha" micropython-studio-esp32s3-debugger-v2.6.0-preview.bin > ESP32S3-SHA256SUMS.txt
+          echo "ESP32-S3 PREVIEW image verified: $sha" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create complete on-device test and recovery instructions
+        shell: bash
+        run: |
+          cat > ESP32S3-READ-ME-FIRST.txt <<'NOTES'
+          ESP32-S3 MicroPython Studio debugger v2.6.0 PREVIEW
+
+          THIS IS A DEVELOPMENT PREVIEW, NOT A FULLY CERTIFIED FIRMWARE.
+          Board: ESP32-S3 with separately available USB-Serial/JTAG and native
+          USB connections. Not for ESP32-C3, S2, Pico, or unrelated targets.
+
+          1. Back up your MicroPython filesystem and existing boot.py first.
+          2. Keep the Serial/JTAG USB port for MicroPython REPL and uploads.
+          3. Flash the single *combined* ESP32-S3 firmware .bin at address 0x0
+             with a compatible ESP32-S3 flasher in the correct mode.
+             Do not also flash separate bootloader/partition binaries.
+          4. Reconnect: native USB CDC is the DEBUGGER port (no REPL expected).
+          5. In Studio use Start Debug -> Connect on the native debug COM.
+          6. Do not upload old Pico boot.py/trace_pump or install
+             usb-device-cdc through MIP; required modules are frozen.
+          7. Breakpoint, locals, continue and short RTA have been demonstrated.
+             Full 30-second RTA / watchdog / reconnect stability remains
+             UNVALIDATED. If the watchdog resets, switch RTA off, recover
+             with Serial/JTAG, and report the serial log.
+          8. If debug CDC is unresponsive, disconnect native USB, keep
+             Serial/JTAG for recovery. Do not erase the filesystem blindly.
+
+          Firmware source commit:
+            bafa3c5aac7fa9a83bafdfa9f7c53f997292c0f4
+          ESP-IDF: v5.5.5; MicroPython pinned a129b2fba1.
+          Detailed guide:
+          https://github.com/niwantha33/micropython_live_debugger/blob/feature/esp32-s3-debugger-v1/esp32/BEGINNER_TEST_GUIDE.md
+          NOTES
+
+      - name: Reject an existing tag or preview release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=v2.6.0-esp32s3-preview
+          if git ls-remote --tags origin "refs/tags/$tag" | grep -q .; then
+            echo "Refusing to modify existing tag $tag" >&2
+            exit 1
+          fi
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Refusing to replace existing release $tag" >&2
+            exit 1
+          fi
+
+      - name: Publish GitHub pre-release (does not change stable binaries)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/s3-release.md <<'RELEASE'
+          # ESP32-S3 debugger — v2.6.0 preview
+
+          **For the real ESP32-S3 board with two USB connections.**
+          Serial/JTAG USB is MicroPython REPL/file upload; separate native USB
+          exposes the frozen debugger.
+
+          A real-device breakpoint, stack response, Continue and a short
+          3.17-second RTA capture were observed. **The 30-second RTA, watchdog,
+          reset/reconnect and exact image-to-device identity tests remain pending.**
+          This is explicitly a **preview**, not a fully stable firmware release.
+
+          **Flash one combined image:** `micropython-studio-esp32s3-debugger-v2.6.0-preview.bin`
+          at ESP32-S3 address `0x0` following `ESP32S3-READ-ME-FIRST.txt`.
+          Back up files first. Never install Pico debugger files on ESP32.
+          Do not flash this to ESP32-C3.
+
+          **Source commit:** `bafa3c5aac7fa9a83bafdfa9f7c53f997292c0f4`.
+          **SHA256:** `2dcf6b4a9d063a479e5a833b9831ea689d4ce81ac960395eaba2f741ca251da2`.
+
+          The [official Pico W v2.6.0 firmware](https://github.com/niwantha33/micropython_live_dbg_firmware/releases/tag/v2.6.0)
+          is independent of this S3 preview and is unchanged.
+          RELEASE
+          gh release create v2.6.0-esp32s3-preview \
+            micropython-studio-esp32s3-debugger-v2.6.0-preview.bin \
+            ESP32S3-v2.6.0-preview-VERSION.txt \
+            ESP32S3-SHA256SUMS.txt \
+            ESP32S3-READ-ME-FIRST.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "ESP32-S3 v2.6.0 — dual-USB debugger (PREVIEW)" \
+            --notes-file /tmp/s3-release.md \
+            --prerelease \
+            --latest=false
+          echo "ESP32-S3 preview release published; stable Pico W v2.6.0 unchanged." >> "$GITHUB_STEP_SUMMARY"
