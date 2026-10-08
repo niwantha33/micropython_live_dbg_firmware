@@ -1,6 +1,7 @@
 name: Weekly UNVALIDATED debugger candidate builds
 
-# These builds are CI-only test artifacts, never stable released firmware.
+# CI candidates are also copied into TestBuilds/ for easy downloads.
+# TestBuilds is NOT the approved/stable firmware channel.
 # The C3 port is excluded until its fixed USB Serial/JTAG transport is built.
 on:
   schedule:
@@ -331,3 +332,103 @@ jobs:
           path: out/
           if-no-files-found: error
           retention-days: 14
+
+  publish-test-downloads:
+    name: Update GitHub TestBuilds downloads
+    needs: [frozen-pico, s3-candidate]
+    if: ${{ needs.frozen-pico.result == 'success' && needs.s3-candidate.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout firmware download repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download all five verified candidate artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: weekly-candidate-*
+          path: staged
+          merge-multiple: true
+
+      - name: Validate and stage board-specific downloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          for entry in "Pico:firmware_pico.uf2:RPI_PICO" "Picow:firmware_pico_w.uf2:RPI_PICO_W" "Pico2:firmware_pico2.uf2:RPI_PICO2" "Pico2w:firmware_pico2_w.uf2:RPI_PICO2_W"; do
+            IFS=: read -r folder binary board <<< "$entry"
+            file="staged/$folder/$binary"
+            version="staged/$folder/VERSION.txt"
+            test -s "$file" && test -s "$version"
+            grep -Fxq "board: $board" "$version"
+            grep -Fxq 'source_branch: feature/pico-frozen-debugger-v1' "$version"
+            grep -Fxq 'bootstrap: frozen-pico-two-phase' "$version"
+            sha="$(sha256sum "$file" | cut -d' ' -f1)"
+            grep -Fxq "sha256: $sha" "$version"
+          done
+
+          test -s staged/ESP32S3/firmware_esp32s3.bin
+          test -s staged/ESP32S3/VERSION.txt
+          test -s staged/ESP32S3/bootloader.bin
+          test -s staged/ESP32S3/partition-table.bin
+          grep -Fxq 'board: ESP32_GENERIC_S3' staged/ESP32S3/VERSION.txt
+          grep -Fxq 'source_branch: feature/esp32-s3-debugger-v1' staged/ESP32S3/VERSION.txt
+          grep -Fxq 'transport: serial-jtag-repl-plus-native-usb-debugger' staged/ESP32S3/VERSION.txt
+          sha="$(sha256sum staged/ESP32S3/firmware_esp32s3.bin | cut -d' ' -f1)"
+          grep -Fxq "sha256: $sha" staged/ESP32S3/VERSION.txt
+
+          # Replace ONLY experimental TestBuilds. Never overwrite stable
+          # Pico/, Pico2w/, ESP32S3/ or any approved VERSION.txt.
+          for board in Pico Picow Pico2 Pico2w ESP32S3; do
+            mkdir -p "TestBuilds/$board"
+            cp -a "staged/$board/." "TestBuilds/$board/"
+          done
+          printf 'workflow_run: %s\nbuilt_from: %s\nstatus: EXPERIMENTAL_NOT_HARDWARE_VALIDATED\n' "$GITHUB_RUN_ID" "$GITHUB_SHA" > TestBuilds/BUILD_INFO.txt
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          names = {
+              "pico": ("Pico", "firmware_pico.uf2"),
+              "picow": ("Picow", "firmware_pico_w.uf2"),
+              "pico2": ("Pico2", "firmware_pico2.uf2"),
+              "pico2w": ("Pico2w", "firmware_pico2_w.uf2"),
+              "esp32-s3": ("ESP32S3", "firmware_esp32s3.bin"),
+          }
+          root = Path("TestBuilds")
+          boards = {}
+          for board_id, (folder, filename) in names.items():
+              version = {}
+              for line in (root / folder / "VERSION.txt").read_text().splitlines():
+                  if ": " in line:
+                      key, value = line.split(": ", 1)
+                      version[key] = value
+              boards[board_id] = {
+                  "path": str(root / folder / filename),
+                  "source_commit": version.get("source_commit"),
+                  "built_at": version.get("built_at"),
+                  "sha256": version.get("sha256"),
+                  "hardware_validated": False,
+              }
+          (root / "LATEST.json").write_text(
+              json.dumps({"channel": "TEST_ONLY", "boards": boards}, indent=2) + "\n"
+          )
+          PY
+
+      - name: Commit latest TEST firmware to GitHub
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "firmware-ci"
+          git config user.email "firmware-ci@users.noreply.github.com"
+          git add TestBuilds/
+          if git diff --cached --quiet; then
+            echo "TestBuilds already matches latest verified artifacts."
+            exit 0
+          fi
+          git commit -m "testfirmware: refresh five experimental board downloads"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo "### Latest TEST firmware is in [TestBuilds](https://github.com/niwantha33/micropython_live_dbg_firmware/tree/main/TestBuilds)." >> "$GITHUB_STEP_SUMMARY"
