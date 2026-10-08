@@ -54,7 +54,9 @@ The new firmware candidates have different instructions in [Pico test guide](htt
 
 ## Source and automatic synchronization
 
-The [source repository](https://github.com/niwantha33/micropython_live_debugger) remains authoritative. This repository's [sync workflow](.github/workflows/sync-debugger-firmware.yml) polls the **source `main` HEAD SHA every 30 minutes** and currently builds **Pico-family only** when that SHA differs from `Pico2w/VERSION.txt`. Therefore *even documentation-only commits* to source `main` may trigger a published Pico rebuild. The workflow must be reviewed/hardened before merging unrelated development branches. S3 and C3 test artifacts are not published automatically by that matrix.
+The [source repository](https://github.com/niwantha33/micropython_live_debugger) remains authoritative. This repository now runs [weekly validated Pico firmware builds](.github/workflows/sync-debugger-firmware.yml) **every Monday at 03:17 UTC** and on manual dispatch. Each run builds all **four Pico-family** UF2s from the explicit hardware-approved SHA in [`.github/approved-pico-source.sha`](.github/approved-pico-source.sha), checks compiled debugger APIs, and uploads testable CI artifacts. A release to `Pico/`, `Picow/`, `Pico2/`, `Pico2w/` occurs **only when the approved source SHA changes** and every build/checksum check succeeds. The existing approved SHA is the source of the already published legacy Pico images, not the unvalidated frozen candidate. If no new approved source exists, the weekly builds still run but the public binary files stay untouched.
+
+The prior 30-minute source-`main` poll was removed: documentation commits and development branches cannot silently replace stable firmware. Frozen Pico/ESP32-S3/ESP32-C3 work is **not** auto-promoted. To approve a later release, first complete the exact-board hardware checklist in [ROADMAP.md](ROADMAP.md), then explicitly update the approval SHA in a reviewed commit.
 
 See [ROADMAP.md](ROADMAP.md) for the validation/publishing gate. Do not replace manually the binary assets or their `VERSION.txt` files outside the approved release workflow.
 
