@@ -62,3 +62,18 @@ single-core debugger/watchdog testing are still outstanding.
 - [ESP32-S3 hardware-validation / PR #4](https://github.com/niwantha33/micropython_live_debugger/pull/4).
 - [ESP32-C3 feasibility branch](https://github.com/niwantha33/micropython_live_debugger/tree/feature/esp32-c3-feasibility-v1).
 - [Studio frozen Connect-only / PR #52](https://github.com/niwantha33/micropython-studio/pull/52).
+
+## Weekly candidate CI checks (unreleased)
+
+- [x] Add Monday 04:53 UTC [candidate workflow](.github/workflows/weekly-candidate-builds.yml).
+- [x] Include all four frozen Pico-family firmware builds.
+- [x] Include the ESP32-S3 dual-physical-USB debugger build.
+- [x] Use read-only checkout/Actions artifact upload only; prohibit direct
+      modification of published board folders.
+- [ ] Verify candidate weekly CI first run and keep actual hardware gates.
+- [ ] Build ESP32-C3 only after exact board dual-USB layout and debugger
+      transport are validated; no empty or copied S3 C3 binaries.
+
+The candidate workflow produces **unvalidated** test artifacts retained
+14 days. It does **not** promote those artifacts into this download repository.
+Only the separate hardware-approved stable Pico workflow can publish binaries.
