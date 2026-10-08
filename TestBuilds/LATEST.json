@@ -1,0 +1,40 @@
+{
+  "channel": "TEST_ONLY",
+  "boards": {
+    "pico": {
+      "path": "TestBuilds/Pico/firmware_pico.uf2",
+      "source_commit": "fa76d1d54fa6dfcfd390c43e363d1a343d5e6825",
+      "built_at": "2026-10-08T13:18:15Z",
+      "sha256": "c885c42b5ff1f7819167264c67c5f589fc2dd26c5cf18ac1b81201bd6b7d7097",
+      "hardware_validated": false
+    },
+    "picow": {
+      "path": "TestBuilds/Picow/firmware_pico_w.uf2",
+      "source_commit": "fa76d1d54fa6dfcfd390c43e363d1a343d5e6825",
+      "built_at": "2026-10-08T13:17:02Z",
+      "sha256": "f60599ccbb1e5ede74a87349b21e10a013d80e7b869aa1ee3072b7cdfa072630",
+      "hardware_validated": false
+    },
+    "pico2": {
+      "path": "TestBuilds/Pico2/firmware_pico2.uf2",
+      "source_commit": "fa76d1d54fa6dfcfd390c43e363d1a343d5e6825",
+      "built_at": "2026-10-08T13:18:05Z",
+      "sha256": "54dd82185b0a433eb65f868a9bd52bb12d26e7c10789b6af2d099d020d4eb70d",
+      "hardware_validated": false
+    },
+    "pico2w": {
+      "path": "TestBuilds/Pico2w/firmware_pico2_w.uf2",
+      "source_commit": "fa76d1d54fa6dfcfd390c43e363d1a343d5e6825",
+      "built_at": "2026-10-08T13:18:00Z",
+      "sha256": "e71846a70c3a284e2b99a8eac3fd05831c06f13fae7cc95b0d26b2428fef1458",
+      "hardware_validated": false
+    },
+    "esp32-s3": {
+      "path": "TestBuilds/ESP32S3/firmware_esp32s3.bin",
+      "source_commit": "bafa3c5aac7fa9a83bafdfa9f7c53f997292c0f4",
+      "built_at": "2026-10-08T13:20:01Z",
+      "sha256": "2dcf6b4a9d063a479e5a833b9831ea689d4ce81ac960395eaba2f741ca251da2",
+      "hardware_validated": false
+    }
+  }
+}

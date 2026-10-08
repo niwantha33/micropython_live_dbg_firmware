@@ -1,0 +1,12 @@
+source_commit: bafa3c5aac7fa9a83bafdfa9f7c53f997292c0f4
+source_branch: feature/esp32-s3-debugger-v1
+micropython_commit: a129b2fba1a3348088c94d0462eef16d20874dea
+esp_idf: v5.5.5
+board: ESP32_GENERIC_S3
+transport: serial-jtag-repl-plus-native-usb-debugger
+usb_layout: SERIAL_JTAG=REPL_UPLOAD,NATIVE_CDC=DEBUGGER
+studio_trace_pump_commit: a62aa231ee15bec41de0a8f9a7bdc89bbbaae975
+built_at: 2026-10-08T13:20:01Z
+sha256: 2dcf6b4a9d063a479e5a833b9831ea689d4ce81ac960395eaba2f741ca251da2
+debug_api: set_bp,clear_bp,step,step_in,step_out,locals,call_stack
+rta_api: dbg.rta_on,dbg.rta_off

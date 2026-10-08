@@ -1,0 +1,14 @@
+source_commit: fa76d1d54fa6dfcfd390c43e363d1a343d5e6825
+source_branch: feature/pico-frozen-debugger-v1
+workflow_commit: 56cb229965614e461c5881b078e302fcb6feeac9
+micropython_commit: a129b2fba1a3348088c94d0462eef16d20874dea
+board: RPI_PICO2_W
+built_at: 2026-10-08T13:18:00Z
+sha256: e71846a70c3a284e2b99a8eac3fd05831c06f13fae7cc95b0d26b2428fef1458
+rta_api: dbg.rta_on,dbg.rta_off
+transport: PICO_CDC0=REPL_UPLOAD,PICO_CDC1=DEBUGGER
+bootstrap: frozen-pico-two-phase
+pump_protocol: 5
+pump_build: 2026-10-07-rta-viewer-v5
+pump_source_commit: a62aa231ee15bec41de0a8f9a7bdc89bbbaae975
+pump_source_blob: f7bded9d6180849e9e92cdd9e06bca4c223ca2bc
