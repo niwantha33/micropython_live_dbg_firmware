@@ -19,3 +19,27 @@ candidate. No C3 GPIO assignments or USB cable layout are assumed.
 
 Neither binary publication nor support is promised until a board-specific,
 30-second RTA/breakpoint/recovery validation passes.
+
+## User hardware identified from front photograph (8 October 2026)
+
+The user's board visually matches the **dual USB-C ESP32-C3-MINI-1
+development board** with RST/BOOT buttons, RGB LED and CH340-family bridge.
+A matching annotated listing identifies **left USB-C as the C3 native
+fixed-function USB Serial/JTAG** and **right USB-C as the CH340 USB-UART**.
+This suggests an independent debugger COM may be possible without GPIO
+wiring: right port = normal MicroPython UART REPL/upload, left port =
+**potential C3-specific debugger CDC**.
+
+This is a **visual match**, not electrical verification of the user's
+exact board revision. Both Windows USB/COM enumerations and the working REPL
+must be checked before firmware implementation. The C3 cannot use the S3
+programmable TinyUSB dual-CDC approach; the native C3 serial/JTAG device has
+to be serviced via a suitable target-specific driver without interfering
+with USB logging/console.
+
+Supporting photo reference:
+https://nl.bestdealplus.com/product/47949195/Dual-Type-C-ESP32-C3-DevKitC-1-ESP32-C3-Wifi-Bluetooth-Compatibel-5-0-Mesh-Development-Board-Esp32-Draadloze-Module-Voor-Arduino
+
+No ESP32-C3 firmware is released by the weekly Pico workflow. Only after
+board-specific breakpoint/RTA/watchdog/recovery checks can C3 publication
+be considered.
