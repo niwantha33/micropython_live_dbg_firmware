@@ -2,6 +2,17 @@
 
 **Find your board, download the firmware, then debug in VS Code.**
 
+## Official v2.6.0 — Pico W frozen debugger
+
+**[Download Raspberry Pi Pico W v2.6.0 UF2](https://github.com/niwantha33/micropython_live_dbg_firmware/releases/download/v2.6.0/micropython-studio-picow-debugger-v2.6.0.uf2)**
+
+[Release notes, version metadata and checksum](https://github.com/niwantha33/micropython_live_dbg_firmware/releases/tag/v2.6.0)
+
+Tested on a physical **Raspberry Pi Pico W** without separately uploading `boot.py`, `dbgref.py` or `trace_pump.py`. One USB cable: CDC0 for REPL/upload, CDC1 for the debugger. The Pico W firmware's full long-duration stability qualification remains ongoing.
+
+**Not for Pico, Pico 2, Pico 2 W, ESP32-S3 or ESP32-C3.** The old `Picow/` folder retains a legacy binary; use the **v2.6.0 Release asset** for the new frozen debugger.
+
+
 ## Latest test builds — Pico / ESP32-S3
 
 **[Open easy firmware downloads →](TestBuilds/README.md)**
