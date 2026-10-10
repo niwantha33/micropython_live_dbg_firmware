@@ -1,6 +1,6 @@
 # Test firmware downloads
 
-These files are **automatically rebuilt candidates**; a CI build does not mean hardware validation. For a pinned release use the [official download page](../README.md).
+These files are **Monday-only published, pinned-source candidates**; a CI build does not mean hardware validation. They are replaced only after all five independent build jobs pass and validate checksums. Manual runs and pull-request builds cannot update downloads. For a pinned release use the [official download page](../README.md).
 
 | Board | Latest candidate |
 | --- | --- |
