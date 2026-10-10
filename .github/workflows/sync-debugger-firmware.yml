@@ -174,7 +174,9 @@ jobs:
       - build
     # Publish ONLY when an explicitly approved SHA is different from the
     # currently published source and ALL four builds/verification jobs passed.
-    if: needs.check.outputs.needs_publish == 'true' && needs.build.result == 'success'
+    # Even approved source promotions publish only on the Monday schedule.
+    # Manual/push runs may validate and stage artifacts, never change downloads.
+    if: github.event_name == 'schedule' && needs.check.outputs.needs_publish == 'true' && needs.build.result == 'success'
     permissions:
       contents: write
     runs-on: ubuntu-latest
