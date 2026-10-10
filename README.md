@@ -2,6 +2,34 @@
 
 Choose your board. **Only flash firmware built for your exact model.**
 
+## Firmware distribution and Monday safety policy
+
+**This repository is the sole public firmware download location.** Development
+source and experimental pull requests in `micropython_live_debugger` are build
+inputs only; MicroPython Studio must never link directly to development-branch
+images or build artifacts as approved releases.
+
+- **Monday 03:17 UTC:** Build four Pico boards from the immutable
+  `.github/approved-pico-source.sha`. Update the stable Pico directories only
+  if that source was separately approved for hardware and its SHA changed.
+- **Monday 04:53 UTC:** Build four integrated frozen Pico/RTA test candidates
+  plus ESP32-S3 from *pinned source commit SHAs*. Verify each build, board and
+  checksum; publish all five to `TestBuilds/` only when every job succeeds.
+- A manual run, pull request or workflow-file push is **build-only**: it cannot
+  publish or replace firmware downloads.
+- The historical v2.6.0 Pico W release and ESP32-S3 preview release are
+  immutable. They never point to `TestBuilds` or track a moving branch.
+- When tests fail, preserve all existing published files and the previous
+  `TestBuilds/LATEST.json`. Revert an accidental candidate commit instead of
+  overwriting the approved release.
+- For ESP32-S3, retain the bootloader, partition table, firmware and
+  board-specific flashing instructions together. A raw .bin alone is not
+  sufficient guidance.
+
+**Hardware caution:** CI compile success is not proof of Windows CDC
+enumeration, USB reconnection, correct boot.py migration or 30-second RTA
+stability. Test candidates remain explicitly UNVALIDATED until board checks.
+
 ## Releases
 
 | Board | Firmware | Status |
