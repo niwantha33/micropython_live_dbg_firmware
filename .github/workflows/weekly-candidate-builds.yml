@@ -1,7 +1,9 @@
-name: Weekly UNVALIDATED debugger candidate builds
+name: Monday-only staged Pico and ESP32-S3 firmware
 
-# CI candidates are also copied into TestBuilds/ for easy downloads.
-# TestBuilds is NOT the approved/stable firmware channel.
+# Build and validate in this distribution repository; only the scheduled Monday
+# event is permitted to publish TEST candidates into TestBuilds/.
+# Stable release assets and stable board directories are never overwritten.
+# Source commits are immutable/pinned; no branch-tip build drift.
 # The C3 port is excluded until its fixed USB Serial/JTAG transport is built.
 on:
   schedule:
@@ -49,11 +51,11 @@ jobs:
             asset: firmware_pico2_w.uf2
 
     steps:
-      - name: Checkout isolated Pico frozen candidate source
+      - name: Checkout pinned Pico frozen/RTA integration source
         uses: actions/checkout@v4
         with:
           repository: niwantha33/micropython_live_debugger
-          ref: feature/pico-frozen-debugger-v1
+          ref: adc4d24777bca21817cf95d092511090ca76ff36
           persist-credentials: false
 
       - name: Resolve candidate source commit
@@ -164,17 +166,27 @@ jobs:
         run: |
           UF2="$HOME/micropython/ports/rp2/build-${{ matrix.board }}/firmware.uf2"
           test -s "$UF2"
-          strings -a "$UF2" | grep -Fxq 'rta_on'  || { echo "ERROR: compiled UF2 is missing dbg.rta_on"; exit 1; }
-          strings -a "$UF2" | grep -Fxq 'rta_off' || { echo "ERROR: compiled UF2 is missing dbg.rta_off"; exit 1; }
-          strings -a "$UF2" | grep -Fq 'mpy_studio_pico_boot.py' || { echo "ERROR: missing frozen Pico bootstrap"; exit 1; }
-          strings -a "$UF2" | grep -Fq 'mpy_studio_pico_start.py' || { echo "ERROR: missing late Pico debugger start"; exit 1; }
-          strings -a "$UF2" | grep -Fq '2026-10-07-rta-viewer-v5' || { echo "ERROR: missing frozen protocol-v5 pump"; exit 1; }
+          # UF2 has per-record block boundaries; full QSTRs can straddle records.
+          # Verify symbols in the matching linked ELF instead.
+          ELF="$HOME/micropython/ports/rp2/build-${{ matrix.board }}/firmware.elf"
+          test -s "$ELF"
+          strings -a "$ELF" > "$RUNNER_TEMP/monday-firmware-strings.txt"
+          for symbol in rta_on rta_off rta_names_on; do
+            grep -Fxq "$symbol" "$RUNNER_TEMP/monday-firmware-strings.txt" || {
+              echo "ERROR: linked ELF missing dbg.$symbol"; exit 1;
+            }
+          done
+          for symbol in mpy_studio_pico_boot.py mpy_studio_pico_start.py 2026-10-07-rta-viewer-v5; do
+            grep -Fq "$symbol" "$RUNNER_TEMP/monday-firmware-strings.txt" || {
+              echo "ERROR: linked ELF missing frozen bootstrap/pump $symbol"; exit 1;
+            }
+          done
           echo "Verified frozen CDC bootstrap, protocol-v5 pump and RTA exports for ${{ matrix.board }}"
 
       - name: Stage firmware artifact
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
-          SOURCE_BRANCH: feature/pico-frozen-debugger-v1
+          SOURCE_BRANCH: fix/pico-frozen-rta-integration-candidate
         run: |
           mkdir -p "out/${{ matrix.folder }}"
           UF2="out/${{ matrix.folder }}/${{ matrix.asset }}"
@@ -188,7 +200,8 @@ jobs:
             echo "board: ${{ matrix.board }}"
             echo "built_at: $(date -u +%FT%TZ)"
             echo "sha256: ${SHA256}"
-            echo "rta_api: dbg.rta_on,dbg.rta_off"
+            echo "rta_api: dbg.rta_on,dbg.rta_off,dbg.rta_names_on"
+            echo "rta_names_frame: 0x07-opt-in-crc16"
             echo "transport: PICO_CDC0=REPL_UPLOAD,PICO_CDC1=DEBUGGER"
             echo "bootstrap: frozen-pico-two-phase"
             echo "pump_protocol: 5"
@@ -211,11 +224,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout isolated ESP32-S3 candidate source
+      - name: Checkout pinned ESP32-S3 candidate source
         uses: actions/checkout@v4
         with:
           repository: niwantha33/micropython_live_debugger
-          ref: feature/esp32-s3-debugger-v1
+          ref: bafa3c5aac7fa9a83bafdfa9f7c53f997292c0f4
           persist-credentials: false
 
       - name: Resolve candidate source commit
@@ -336,7 +349,8 @@ jobs:
   publish-test-downloads:
     name: Update GitHub TestBuilds downloads
     needs: [frozen-pico, s3-candidate]
-    if: ${{ needs.frozen-pico.result == 'success' && needs.s3-candidate.result == 'success' }}
+    # Manual/push CI is build-only. Never replace public downloads on those events.
+    if: ${{ github.event_name == 'schedule' && needs.frozen-pico.result == 'success' && needs.s3-candidate.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -357,13 +371,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = "schedule" || { echo "Only Mondays may publish"; exit 1; }
           for entry in "Pico:firmware_pico.uf2:RPI_PICO" "Picow:firmware_pico_w.uf2:RPI_PICO_W" "Pico2:firmware_pico2.uf2:RPI_PICO2" "Pico2w:firmware_pico2_w.uf2:RPI_PICO2_W"; do
             IFS=: read -r folder binary board <<< "$entry"
             file="staged/$folder/$binary"
             version="staged/$folder/VERSION.txt"
             test -s "$file" && test -s "$version"
             grep -Fxq "board: $board" "$version"
-            grep -Fxq 'source_branch: feature/pico-frozen-debugger-v1' "$version"
+            grep -Fxq 'source_branch: fix/pico-frozen-rta-integration-candidate' "$version"
+            grep -Fxq 'source_commit: adc4d24777bca21817cf95d092511090ca76ff36' "$version"
+            grep -Fxq 'rta_names_frame: 0x07-opt-in-crc16' "$version"
             grep -Fxq 'bootstrap: frozen-pico-two-phase' "$version"
             sha="$(sha256sum "$file" | cut -d' ' -f1)"
             grep -Fxq "sha256: $sha" "$version"
@@ -375,6 +392,7 @@ jobs:
           test -s staged/ESP32S3/partition-table.bin
           grep -Fxq 'board: ESP32_GENERIC_S3' staged/ESP32S3/VERSION.txt
           grep -Fxq 'source_branch: feature/esp32-s3-debugger-v1' staged/ESP32S3/VERSION.txt
+          grep -Fxq 'source_commit: bafa3c5aac7fa9a83bafdfa9f7c53f997292c0f4' staged/ESP32S3/VERSION.txt
           grep -Fxq 'transport: serial-jtag-repl-plus-native-usb-debugger' staged/ESP32S3/VERSION.txt
           sha="$(sha256sum staged/ESP32S3/firmware_esp32s3.bin | cut -d' ' -f1)"
           grep -Fxq "sha256: $sha" staged/ESP32S3/VERSION.txt
