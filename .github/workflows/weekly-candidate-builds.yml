@@ -8,7 +8,11 @@ name: Monday-only staged Pico and ESP32-S3 firmware
 on:
   schedule:
     - cron: '53 4 * * 1' # Mondays 04:53 UTC; after stable Pico builds
-  workflow_dispatch:
+  workflow_dispatch: # Build-only on demand; publishing remains Monday-only.
+  pull_request: # Verify workflow changes before accepting them.
+    paths:
+      - '.github/workflows/weekly-candidate-builds.yml'
+      - '.github/workflows/sync-debugger-firmware.yml'
   push:
     branches: [main]
     paths:
