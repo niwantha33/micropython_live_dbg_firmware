@@ -4,36 +4,36 @@
     "pico": {
       "path": "TestBuilds/Pico/firmware_pico.uf2",
       "source_commit": "adc4d24777bca21817cf95d092511090ca76ff36",
-      "built_at": "2026-10-26T11:26:23Z",
-      "sha256": "8a2f453d84071ebc6a5501873a3e757ac1db1871b4931454bc8cc59760503754",
+      "built_at": "2026-11-02T13:01:29Z",
+      "sha256": "b23d81f991d2a9861cd5a920e4a67cd200f766079e39888d7b069100646f403a",
       "hardware_validated": false
     },
     "picow": {
       "path": "TestBuilds/Picow/firmware_pico_w.uf2",
       "source_commit": "adc4d24777bca21817cf95d092511090ca76ff36",
-      "built_at": "2026-10-26T10:41:55Z",
-      "sha256": "9319d1c947a325d6908e610b8915f8e3261f6b5b4be76b0721005a00a344b307",
+      "built_at": "2026-11-02T13:01:20Z",
+      "sha256": "84e7e19d01c21b741c4422f64cdaddbc050163f0b348df54154092a212907137",
       "hardware_validated": false
     },
     "pico2": {
       "path": "TestBuilds/Pico2/firmware_pico2.uf2",
       "source_commit": "adc4d24777bca21817cf95d092511090ca76ff36",
-      "built_at": "2026-10-26T12:00:21Z",
-      "sha256": "46052c8e24e292af5fdb2dd3100821fc4e0e07d9f64fdc49e640af3d560d4634",
+      "built_at": "2026-11-02T13:00:50Z",
+      "sha256": "2a7e034079798163e333278d112e7f223a1c0850d2b018672928d0ffaaf4b1a4",
       "hardware_validated": false
     },
     "pico2w": {
       "path": "TestBuilds/Pico2w/firmware_pico2_w.uf2",
       "source_commit": "adc4d24777bca21817cf95d092511090ca76ff36",
-      "built_at": "2026-10-26T10:42:40Z",
-      "sha256": "cc58c8c6903e2ac99a69555a69755673fc03086e126c5b8521cb6bd04fa180c2",
+      "built_at": "2026-11-02T13:01:33Z",
+      "sha256": "e8ffbe7a91e75d7612202010b242231d614717ea21177b5fdce967c85907255d",
       "hardware_validated": false
     },
     "esp32-s3": {
       "path": "TestBuilds/ESP32S3/firmware_esp32s3.bin",
       "source_commit": "bafa3c5aac7fa9a83bafdfa9f7c53f997292c0f4",
-      "built_at": "2026-10-26T10:44:42Z",
-      "sha256": "fae8f7e190e5c569beecf5df9afb31228dc61fc5467b5fce59711f492417d1b5",
+      "built_at": "2026-11-02T13:03:57Z",
+      "sha256": "d6a02adf04ee910e616fac063230b7aa1872c7bdec5ee33cb6ead70f000acefb",
       "hardware_validated": false
     }
   }
