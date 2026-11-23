@@ -1,10 +1,10 @@
 source_commit: adc4d24777bca21817cf95d092511090ca76ff36
 source_branch: fix/pico-frozen-rta-integration-candidate
-workflow_commit: eaf3c8c87029d3baa7c9e4343a5e7e311b80c81d
+workflow_commit: 6c1e646cfc0715a219e1e726798ddbc999a9efab
 micropython_commit: a129b2fba1a3348088c94d0462eef16d20874dea
 board: RPI_PICO2
-built_at: 2026-11-16T13:19:40Z
-sha256: ee2248b3c55286aa0483bcfb583b784cbef341543078e8a1f6a9c3db247f4990
+built_at: 2026-11-23T15:33:57Z
+sha256: eb707deb89ea85e99f7485bf4379dd43a51542bedfe9b9d44c90aea4b859b207
 rta_api: dbg.rta_on,dbg.rta_off,dbg.rta_names_on
 rta_names_frame: 0x07-opt-in-crc16
 transport: PICO_CDC0=REPL_UPLOAD,PICO_CDC1=DEBUGGER

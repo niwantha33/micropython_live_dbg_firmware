@@ -6,7 +6,7 @@ board: ESP32_GENERIC_S3
 transport: serial-jtag-repl-plus-native-usb-debugger
 usb_layout: SERIAL_JTAG=REPL_UPLOAD,NATIVE_CDC=DEBUGGER
 studio_trace_pump_commit: a62aa231ee15bec41de0a8f9a7bdc89bbbaae975
-built_at: 2026-11-16T13:18:50Z
-sha256: 3bf1099916e8e434ced66bf2fd0e70e852ec0df8cc6a3af6d38158a3b8c67c0c
+built_at: 2026-11-23T15:35:26Z
+sha256: edcba87603d4e0045c0a1b12f6aa0d640e3a7942ae076498bde49bad86d87438
 debug_api: set_bp,clear_bp,step,step_in,step_out,locals,call_stack
 rta_api: dbg.rta_on,dbg.rta_off
