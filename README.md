@@ -30,6 +30,15 @@ images or build artifacts as approved releases.
 enumeration, USB reconnection, correct boot.py migration or 30-second RTA
 stability. Test candidates remain explicitly UNVALIDATED until board checks.
 
+## Candidate source and qualification
+
+The candidate build configuration pins the consolidated Pico source and the
+ESP32-S3 scope/step candidate by exact commit. Both must expose native
+`dbg.scope_step_revision()` revision 1 and pass build-time checks. The frozen
+Pico pump and ESP32-S3 pump are checked by content hash. `TestBuilds/LATEST.json`
+continues to identify the files actually published, not merely the newest CI run.
+The stable source pin is separate and is not advanced by candidate builds.
+
 ## Releases
 
 | Board | Firmware | Status |
@@ -45,7 +54,7 @@ ESP32-S3 requires **two USB connections**: Serial/JTAG for REPL/upload and nativ
 
 [**Pico / Pico 2 / Pico W / Pico 2 W / ESP32-S3 test builds**](TestBuilds/README.md)
 
-Other Pico frozen-debugger images still need their own hardware checks. **ESP32-C3/S2 debugger firmware is not available.** Do not use an S3 image on a C3.
+Other Pico frozen-debugger images still need their own hardware checks. **No approved ESP32-C3/S2 native debugger image is distributed here.** Do not use an S3 image on a C3.
 
 Previously published files remain in the legacy board folders; they are not necessarily the newest debugger images.
 
