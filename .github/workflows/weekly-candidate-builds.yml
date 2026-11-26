@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: niwantha33/micropython_live_debugger
-          ref: adc4d24777bca21817cf95d092511090ca76ff36
+          ref: 8b173170bd8ac1281fbeda60478245e164e74bf2
           persist-credentials: false
 
       - name: Resolve candidate source commit
@@ -112,10 +112,10 @@ jobs:
           # Reuse exactly the already-tested Studio protocol-v5 pump.
           # Pin both its source commit and content hash: no silent latest drift.
           curl --fail --location --silent --show-error --retry 3 \
-            https://raw.githubusercontent.com/niwantha33/micropython-studio/a62aa231ee15bec41de0a8f9a7bdc89bbbaae975/src/debugger_files/trace_pump.py \
+            https://raw.githubusercontent.com/niwantha33/micropython-studio/b6e862bdc473301957a5d08af26c4e3f02e337c0/src/debugger_files/trace_pump.py \
             --output "$BOARD_DIR/mpy_studio_frozen/mpy_studio_pico_trace_pump.py"
           test "$(git hash-object "$BOARD_DIR/mpy_studio_frozen/mpy_studio_pico_trace_pump.py")" = \
-            "f7bded9d6180849e9e92cdd9e06bca4c223ca2bc"
+            "dfec45501e1944d162c309bee1f3f52bd6b54e34"
           grep -q 'PUMP_PROTOCOL = 5' "$BOARD_DIR/mpy_studio_frozen/mpy_studio_pico_trace_pump.py"
           grep -q 'PUMP_BUILD = "2026-10-07-rta-viewer-v5"' "$BOARD_DIR/mpy_studio_frozen/mpy_studio_pico_trace_pump.py"
 
@@ -175,7 +175,7 @@ jobs:
           ELF="$HOME/micropython/ports/rp2/build-${{ matrix.board }}/firmware.elf"
           test -s "$ELF"
           strings -a "$ELF" > "$RUNNER_TEMP/monday-firmware-strings.txt"
-          for symbol in rta_on rta_off rta_names_on; do
+          for symbol in rta_on rta_off rta_names_on globals scope_step_revision; do
             grep -Fxq "$symbol" "$RUNNER_TEMP/monday-firmware-strings.txt" || {
               echo "ERROR: linked ELF missing dbg.$symbol"; exit 1;
             }
@@ -190,7 +190,7 @@ jobs:
       - name: Stage firmware artifact
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
-          SOURCE_BRANCH: fix/pico-frozen-rta-integration-candidate
+          SOURCE_BRANCH: main
         run: |
           mkdir -p "out/${{ matrix.folder }}"
           UF2="out/${{ matrix.folder }}/${{ matrix.asset }}"
@@ -208,10 +208,11 @@ jobs:
             echo "rta_names_frame: 0x07-opt-in-crc16"
             echo "transport: PICO_CDC0=REPL_UPLOAD,PICO_CDC1=DEBUGGER"
             echo "bootstrap: frozen-pico-two-phase"
+            echo "scope_step_revision: 1"
             echo "pump_protocol: 5"
             echo "pump_build: 2026-10-07-rta-viewer-v5"
-            echo "pump_source_commit: a62aa231ee15bec41de0a8f9a7bdc89bbbaae975"
-            echo "pump_source_blob: f7bded9d6180849e9e92cdd9e06bca4c223ca2bc"
+            echo "pump_source_commit: b6e862bdc473301957a5d08af26c4e3f02e337c0"
+            echo "pump_source_blob: dfec45501e1944d162c309bee1f3f52bd6b54e34"
           } > "out/${{ matrix.folder }}/VERSION.txt"
 
       - name: Upload test firmware
@@ -232,7 +233,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: niwantha33/micropython_live_debugger
-          ref: bafa3c5aac7fa9a83bafdfa9f7c53f997292c0f4
+          ref: 11f2e1e6f8a2a02003b91fb9945b2a8d844fdd9d
           persist-credentials: false
 
       - name: Resolve candidate source commit
@@ -261,7 +262,12 @@ jobs:
             bash "$p"
           done
 
-      - name: Install frozen dual-CDC debugger modules
+      - name: Test ESP32-S3 scope reply contracts and verify pinned pump
+        run: |
+          python3 -m unittest discover -s esp32/tests -v
+          test "$(git hash-object esp32/frozen/mpy_studio_trace_pump.py)" = "0a7a7ffb4feb034e0cd4ec29543168b74636f11d"
+
+      - name: Install frozen ESP32-S3 debugger modules
         run: |
           BOARD_DIR="$GITHUB_WORKSPACE/micropython/ports/esp32/boards/ESP32_GENERIC_S3"
           STOCK_BOOT="$GITHUB_WORKSPACE/micropython/ports/esp32/modules/_boot.py"
@@ -304,6 +310,11 @@ jobs:
         run: |
           BUILD="$GITHUB_WORKSPACE/micropython/ports/esp32/build-ESP32_GENERIC_S3"
           test -s "$BUILD/firmware.bin"
+          test -s "$BUILD/micropython.elf"
+          strings -a "$BUILD/micropython.elf" > "$RUNNER_TEMP/esp32-elf-strings.txt"
+          for symbol in globals scope_step_revision rta_names_on step; do
+            grep -Fxq "$symbol" "$RUNNER_TEMP/esp32-elf-strings.txt" || { echo "ERROR: missing dbg.$symbol"; exit 1; }
+          done
           strings -a "$BUILD/firmware.bin" | grep -Fxq 'rta_on' || { echo "ERROR: missing dbg.rta_on"; exit 1; }
           strings -a "$BUILD/firmware.bin" | grep -Fxq 'rta_off' || { echo "ERROR: missing dbg.rta_off"; exit 1; }
           strings -a "$BUILD/firmware.bin" | grep -Fxq 'set_bp' || { echo "ERROR: missing dbg.set_bp"; exit 1; }
@@ -335,10 +346,12 @@ jobs:
             echo "board: ESP32_GENERIC_S3"
             echo "transport: serial-jtag-repl-plus-native-usb-debugger"
             echo "usb_layout: SERIAL_JTAG=REPL_UPLOAD,NATIVE_CDC=DEBUGGER"
-            echo "studio_trace_pump_commit: a62aa231ee15bec41de0a8f9a7bdc89bbbaae975"
+            echo "studio_trace_pump_base_commit: a62aa231ee15bec41de0a8f9a7bdc89bbbaae975"
+            echo "esp32_trace_pump_blob: $(git hash-object esp32/frozen/mpy_studio_trace_pump.py)"
+            echo "scope_step_revision: 1"
             echo "built_at: $(date -u +%FT%TZ)"
             echo "sha256: $SHA256"
-            echo "debug_api: set_bp,clear_bp,step,step_in,step_out,locals,call_stack"
+            echo "debug_api: set_bp,clear_bp,step,step_in,step_out,locals,globals,call_stack"
             echo "rta_api: dbg.rta_on,dbg.rta_off"
           } > "$OUT/VERSION.txt"
 
@@ -382,10 +395,13 @@ jobs:
             version="staged/$folder/VERSION.txt"
             test -s "$file" && test -s "$version"
             grep -Fxq "board: $board" "$version"
-            grep -Fxq 'source_branch: fix/pico-frozen-rta-integration-candidate' "$version"
-            grep -Fxq 'source_commit: adc4d24777bca21817cf95d092511090ca76ff36' "$version"
+            grep -Fxq 'source_branch: main' "$version"
+            grep -Fxq 'source_commit: 8b173170bd8ac1281fbeda60478245e164e74bf2' "$version"
             grep -Fxq 'rta_names_frame: 0x07-opt-in-crc16' "$version"
             grep -Fxq 'bootstrap: frozen-pico-two-phase' "$version"
+            grep -Fxq 'scope_step_revision: 1' "$version"
+            grep -Fxq 'pump_source_commit: b6e862bdc473301957a5d08af26c4e3f02e337c0' "$version"
+            grep -Fxq 'pump_source_blob: dfec45501e1944d162c309bee1f3f52bd6b54e34' "$version"
             sha="$(sha256sum "$file" | cut -d' ' -f1)"
             grep -Fxq "sha256: $sha" "$version"
           done
@@ -394,10 +410,14 @@ jobs:
           test -s staged/ESP32S3/VERSION.txt
           test -s staged/ESP32S3/bootloader.bin
           test -s staged/ESP32S3/partition-table.bin
+          test -s staged/ESP32S3/micropython.bin
+          test -s staged/ESP32S3/TESTING.md
           grep -Fxq 'board: ESP32_GENERIC_S3' staged/ESP32S3/VERSION.txt
           grep -Fxq 'source_branch: feature/esp32-s3-debugger-v1' staged/ESP32S3/VERSION.txt
-          grep -Fxq 'source_commit: bafa3c5aac7fa9a83bafdfa9f7c53f997292c0f4' staged/ESP32S3/VERSION.txt
+          grep -Fxq 'source_commit: 11f2e1e6f8a2a02003b91fb9945b2a8d844fdd9d' staged/ESP32S3/VERSION.txt
           grep -Fxq 'transport: serial-jtag-repl-plus-native-usb-debugger' staged/ESP32S3/VERSION.txt
+          grep -Fxq 'scope_step_revision: 1' staged/ESP32S3/VERSION.txt
+          grep -Fxq 'esp32_trace_pump_blob: 0a7a7ffb4feb034e0cd4ec29543168b74636f11d' staged/ESP32S3/VERSION.txt
           sha="$(sha256sum staged/ESP32S3/firmware_esp32s3.bin | cut -d' ' -f1)"
           grep -Fxq "sha256: $sha" staged/ESP32S3/VERSION.txt
 
@@ -432,6 +452,7 @@ jobs:
                   "source_commit": version.get("source_commit"),
                   "built_at": version.get("built_at"),
                   "sha256": version.get("sha256"),
+                  "scope_step_revision": version.get("scope_step_revision"),
                   "hardware_validated": False,
               }
           (root / "LATEST.json").write_text(

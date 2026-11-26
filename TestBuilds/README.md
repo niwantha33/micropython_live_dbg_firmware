@@ -12,4 +12,4 @@ These files are **Monday-only published, pinned-source candidates**; a CI build 
 
 [Build versions and checksums](LATEST.json) · [CI history](https://github.com/niwantha33/micropython_live_dbg_firmware/actions/workflows/weekly-candidate-builds.yml)
 
-Pico: match the exact board and back up user files before entering BOOTSEL. ESP32-S3: use Serial/JTAG for REPL/upload and native USB for debugger. Read the preview flashing instructions before installation. ESP32-C3 has **no debugger release**.
+Pico: match the exact board and back up user files before entering BOOTSEL. ESP32-S3: use Serial/JTAG for REPL/upload and native USB for debugger. Read the preview flashing instructions before installation. ESP32-C3 has **no approved native debugger release** in this repository. Normal serial compatibility is separate. Check `LATEST.json` and each `VERSION.txt` for the actual published revision; successful PR builds are not published downloads.
